@@ -1,0 +1,224 @@
+<html>
+<body>
+
+<div id="divUi">
+	<h3>HTML Parser</h3>
+
+	<p>
+		Enter valid HTML, or click the Load Demo button,
+		and click the Parse button to parse it.
+	</p>
+
+	<div>
+		<div><label>Layout:</label></div>
+		<div><textarea id="inputStringToParse" cols="80" rows="20"></textarea></div>
+	</div>
+	<div>
+		<button id="buttonLoadDemoText" onclick="buttonLoadDemoText_Clicked();">Load Demo Text</button>
+		<button id="buttonParse" onclick="buttonParse_Clicked();">Parse</button>
+	</div>
+	<div>
+		<label>Output:</label>
+		<div id="divOutput"></div>
+	</div>
+</div>
+
+<script type="text/javascript">
+ 
+// ui event handlers
+ 
+function buttonLoadDemoText_Clicked()
+{
+	// Any full tags in the string 
+	// will be interpreted as real tags in the page,
+	// so break tags up into substrings and concatenate.
+ 
+	var demoText =
+		"<" + "html><" + "body>"
+		+ "<" + "script type='text/javascript'>alert('hello');<" + "/script>"
+		+ "<" + "/body><" + "/html>";
+	var inputStringToParse = document.getElementById("inputStringToParse");
+	inputStringToParse.value = demoText;
+}
+
+function buttonParse_Clicked()
+{
+	var inputStringToParse = document.getElementById("inputStringToParse");
+	var stringToParse = inputStringToParse.value;
+	var htmlDocument = HTMLParser.stringToHTMLDocument(stringToParse);
+	var htmlDocumentAsString = htmlDocument.toString();
+	var divOutput = document.getElementById("divOutput");
+	divOutput.innerHTML = htmlDocumentAsString;
+}
+ 
+// extensions
+ 
+String.prototype.splitAndIgnoreEmptyStrings = function(delimiter)
+{
+	return this.split(delimiter).filter
+	(
+		function(s) { return s != "";} 
+	);
+}
+
+// classes
+ 
+class HTMLAttribute
+{
+	constructor(name, value)
+	{
+		this.name = name;
+		this.value = value;
+	}
+
+	toString()
+	{
+		var returnValue = this.name + "=" + this.value;
+		return returnValue;
+	}
+}
+ 
+class HTMLDocument
+{
+	constructor(elementRoot)
+	{
+		this.elementRoot = elementRoot;
+	}
+
+	toString()
+	{
+		var returnValue = this.elementRoot.toString();
+		return returnValue;
+	}
+}
+ 
+class HTMLElement
+{
+	constructor(parent)
+	{
+		this.parent = parent;
+		this.tagName = null;
+		this.attributes = [];
+		this.content = null;
+		this.children = [];
+	 
+		if (this.parent != null)
+		{
+			this.parent.children.push(this);
+		}
+	}
+
+	toString()
+	{
+		var returnValue = 
+			"<" + this.tagName + " ";
+ 
+		for (var a = 0; a < this.attributes.length; a++)
+		{
+			var attribute = this.attributes[a];
+			var attributeAsString = attribute.toString();
+			returnValue += attributeAsString;
+		}
+ 
+		if (this.children.length == 0 && this.content == null)
+		{
+				returnValue += "/>";
+		}
+		else
+		{
+			returnValue += ">";
+ 
+			if (this.content == null)
+			{
+				for (var c = 0; c < this.children.length; c++)
+				{
+					var child = this.children[c];
+					returnValue += child.toString();
+				}
+			}
+			else
+			{
+				returnValue += this.content;
+			}
+ 
+			returnValue += "</" + this.tagName + ">";
+ 
+		}
+ 
+		returnValue = returnValue.split("<").join("&lt;");
+		returnValue = returnValue.split(">").join("&gt;");
+ 
+		return returnValue;
+	}
+}
+ 
+class HTMLParser
+{
+	static stringToHTMLDocument(stringToParse)
+	{
+		var tagsAndContentsAsStrings =
+			stringToParse.splitAndIgnoreEmptyStrings("<");
+ 
+		var elementCurrent = null;
+		var elementRoot;
+ 
+		for (var t = 0; t < tagsAndContentsAsStrings.length; t++)
+		{
+			var tagAndContentAsString = tagsAndContentsAsStrings[t];
+			 
+			if (tagAndContentAsString.startsWith("/") == true)
+			{
+				// close tag
+				elementCurrent = elementCurrent.parent;
+			}
+			else
+			{
+				elementCurrent = new HTMLElement(elementCurrent);
+ 
+				if (elementCurrent.parent == null)
+				{
+					elementRoot = elementCurrent;   
+				}
+ 
+				var tagAndContent = tagAndContentAsString.splitAndIgnoreEmptyStrings(">");
+ 
+				var openTagAsString = tagAndContent[0];
+ 
+				if (openTagAsString.endsWith("/") == true)
+				{
+					// self-closing tag
+					elementCurrent = elementParent;
+				}
+				else if (tagAndContent.length > 1)
+				{
+					elementCurrent.content = tagAndContent[1];  
+				}
+
+				var tagNameAndAttributesAsStrings = openTagAsString.splitAndIgnoreEmptyStrings(" ");
+
+				elementCurrent.tagName = tagNameAndAttributesAsStrings[0];
+
+				for (var a = 1; a < tagNameAndAttributesAsStrings.length; a++)
+				{
+					var attributeAsString = tagNameAndAttributesAsStrings[a];
+					var attributeNameAndValue = attributeAsString.split("=");
+					var attributeName = attributeNameAndValue[0];
+					var attributeValue = attributeNameAndValue[1];
+					var attribute = new HTMLAttribute
+					(
+						attributeName, attributeValue
+					);
+					elementCurrent.attributes.push(attribute);
+				}
+			}
+		}
+
+		var returnValue = new HTMLDocument(elementRoot);
+
+		return returnValue;
+	}
+}
+ 
+</script>
+</body>
+</html>
